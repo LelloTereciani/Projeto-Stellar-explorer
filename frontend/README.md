@@ -1,7 +1,3 @@
-Absolutamente, Wesley! Com base em todo o documento `ReadmeProjetoStellar.docx` e nos trechos de código que você forneceu, compilei um `README.md` abrangente e vibrante para o seu projeto `Stellar Explorer`, completo com emoticons e um tom que simula "texto colorido" através de formatação Markdown.
-
----
-
 # �� Stellar Explorer - Um Navegador Interativo da Blockchain Stellar 🛰️
 
 ## 🌟 Visão Geral
