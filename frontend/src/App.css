@@ -1,0 +1,74 @@
+body {
+    background-color: #0a0e1a;
+    color: #ffffff;
+    font-family: 'Roboto', sans-serif;
+}
+
+.data-table {
+    background-color: #1a1a2e;
+}
+
+.data-table th {
+    background-color: #16213e;
+    color: #ffffff;
+    font-weight: bold;
+}
+
+.data-table td {
+    border-bottom: 1px solid #2a2a3e;
+}
+
+/* Animações para cards */
+.MuiCard-root {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.MuiCard-root:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+}
+
+/* Estilo para links */
+a {
+    color: #64b5f6;
+    transition: color 0.2s ease-in-out;
+}
+
+a:hover {
+    color: #90caf9;
+}
+
+/* Animação de pulse para o chip "Ao Vivo" */
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+/* Estilo para tabelas */
+.MuiTableContainer-root {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.MuiTableHead-root {
+    background-color: #1e1e2e;
+}
+
+.MuiTableRow-root:hover {
+    background-color: rgba(255, 255, 255, 0.04);
+}
+
+/* Gradiente para o título */
+.gradient-text {
+    background: linear-gradient(45deg, #2196F3 30%, #21CBF3 90%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
