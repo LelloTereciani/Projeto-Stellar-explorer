@@ -268,8 +268,8 @@ Este projeto está licenciado sob a **Licença MIT** - veja o arquivo `LICENSE` 
 
 Este projeto foi cuidadosamente desenvolvido por **Wesley Rodrigues Tereciani** ��‍♂️👨‍💻.
 
--   **GitHub**: [@seu-usuario](https://github.com/seu-usuario)
--   **LinkedIn**: [Seu LinkedIn](https://www.linkedin.com/in/seu-linkedin/)
+-   **GitHub**: https://github.com/LelloTereciani
+-   **LinkedIn**: https://www.linkedin.com/in/wesleyti/
 
 ## 🙏 Agradecimentos
 
