@@ -253,7 +253,7 @@ Contribuições são *muito bem-vindas*! Se você deseja ajudar a tornar o *Stel
 
 ## �� Reportando Bugs
 
-Encontrou um problema? Ajude-nos a corrigi-lo abrindo uma [**issue**](https://github.com/LelloTereciani//stellar-explorer/issues) e incluindo:
+Encontrou um problema? Ajude-nos a corrigi-lo abrindo uma [**issue**](https://github.com/LelloTereciani/stellar-explorer/issues) e incluindo:
 
 -   Descrição *detalhada* do problema.
 -   Passos para reproduzir o erro.
