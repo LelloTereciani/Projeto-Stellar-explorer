@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { createTheme } from '@mui/material/styles';
 
 const AppContext = createContext();
@@ -25,9 +25,46 @@ const defaultTheme = createTheme({
 });
 
 export const AppProvider = ({ children }) => {
-    // 🔄 ALTERAÇÃO: Padrões alterados para Mainnet (false) e Day Mode (false)
-    const [isTestnet, setIsTestnet] = useState(false); // ← Era true, agora é false (Mainnet)
-    const [isDarkMode, setIsDarkMode] = useState(false); // ← Mantém false (Day Mode)
+    // 🔄 Persistir rede selecionada
+    const [isTestnet, setIsTestnet] = useState(() => {
+        try {
+            const stored = localStorage.getItem('stellarExplorerNetwork');
+            if (stored === 'testnet') return true;
+            if (stored === 'mainnet') return false;
+        } catch (error) {
+            console.warn('Não foi possível ler a rede do localStorage:', error);
+        }
+        return false; // padrão: Mainnet
+    });
+
+    const [isDarkMode, setIsDarkMode] = useState(() => {
+        try {
+            const stored = localStorage.getItem('stellarExplorerTheme');
+            if (stored === 'dark') return true;
+            if (stored === 'light') return false;
+        } catch (error) {
+            console.warn('Não foi possível ler o tema do localStorage:', error);
+        }
+        return false; // padrão: light
+    });
+
+    // Persistir seleção de rede
+    useEffect(() => {
+        try {
+            localStorage.setItem('stellarExplorerNetwork', isTestnet ? 'testnet' : 'mainnet');
+        } catch (error) {
+            console.warn('Não foi possível salvar a rede no localStorage:', error);
+        }
+    }, [isTestnet]);
+
+    // Persistir tema
+    useEffect(() => {
+        try {
+            localStorage.setItem('stellarExplorerTheme', isDarkMode ? 'dark' : 'light');
+        } catch (error) {
+            console.warn('Não foi possível salvar o tema no localStorage:', error);
+        }
+    }, [isDarkMode]);
 
     // Criar tema do Material-UI com fallback
     let theme;
@@ -78,6 +115,10 @@ export const AppProvider = ({ children }) => {
             : 'https://horizon.stellar.org'; // ← Agora será o padrão
     };
 
+    const getBackendUrl = () => {
+        return import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    };
+
     // Nome da rede
     const networkName = isTestnet ? 'Testnet' : 'Mainnet'; // ← Agora mostra "Mainnet" por padrão
     
@@ -99,6 +140,7 @@ export const AppProvider = ({ children }) => {
         isDarkMode,
         theme,
         getApiUrl,
+        getBackendUrl,
         networkName,
         networkColor,
         toggleNetwork,

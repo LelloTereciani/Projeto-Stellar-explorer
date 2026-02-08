@@ -62,6 +62,16 @@ function HomePage() {
     const [searchResult, setSearchResult] = useState(null);
     const [searchError, setSearchError] = useState('');
 
+    const getSearchTypeLabel = (type) => {
+        switch (type) {
+            case 'ledger': return 'Ledger';
+            case 'transaction': return 'Transação';
+            case 'account': return 'Conta';
+            case 'contract': return 'Contrato';
+            default: return 'Resultado';
+        }
+    };
+
     // Função para buscar dados da API
     const fetchData = async () => {
         try {
@@ -112,12 +122,18 @@ function HomePage() {
             // Determinar tipo de busca baseado no formato
             let searchUrl = '';
             let searchType = '';
+            let skipFetch = false;
 
             // 🔢 NÚMEROS - Buscar ledger
             if (/^[0-9]+$/.test(query)) {
                 searchUrl = `${apiUrl}/ledgers/${query}`;
                 searchType = 'ledger';
-            } 
+            }
+            // 🧩 CONTRATOS SOROBAN - Começam com C (56 chars base32)
+            else if (/^C[A-Z2-7]{55}$/i.test(query)) {
+                searchType = 'contract';
+                skipFetch = true;
+            }
             // 🏦 ENDEREÇOS STELLAR - Começam com G
             else if (query.length === 56 && query.startsWith('G')) {
                 searchUrl = `${apiUrl}/accounts/${query}`;
@@ -131,19 +147,27 @@ function HomePage() {
             }
             // 📝 OUTROS FORMATOS INVÁLIDOS
             else {
-                setSearchError('❌ Formato inválido! Use: número do ledger (ex: 12345), endereço da conta (começa com G) ou hash de transação (64 caracteres).');
+                setSearchError('❌ Formato inválido! Use: número do ledger (ex: 12345), endereço da conta (G...), contrato (C...) ou hash de transação (64 caracteres).');
                 return;
             }
 
-            const response = await axios.get(searchUrl);
-            
-            setSearchResult({
-                type: searchType,
-                data: response.data,
-                query: query
-            });
-
-            console.log(`✅ Resultado encontrado:`, response.data);
+            if (!skipFetch) {
+                const response = await axios.get(searchUrl);
+                
+                setSearchResult({
+                    type: searchType,
+                    data: response.data,
+                    query: query
+                });
+                console.log(`✅ Resultado encontrado:`, response.data);
+            } else {
+                setSearchResult({
+                    type: searchType,
+                    data: null,
+                    query: query
+                });
+                console.log('✅ Contrato reconhecido (sem busca externa)');
+            }
 
         } catch (err) {
             console.error('❌ Erro na busca:', err);
@@ -274,7 +298,7 @@ function HomePage() {
                                 <TextField
                                     fullWidth
                                     variant="outlined"
-                                    placeholder="Digite: número do ledger (ex: 12345), endereço da conta (G...) ou hash da transação"
+                                    placeholder="Digite: número do ledger (ex: 12345), endereço da conta (G...), contrato (C...) ou hash da transação"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     onKeyPress={handleKeyPress}
@@ -348,8 +372,7 @@ function HomePage() {
                             {searchResult && (
                                 <Alert severity="success" sx={{ mt: 3, borderRadius: 2 }}>
                                     <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                                        ✅ {searchResult.type === 'ledger' ? 'Ledger' : 
-                                             searchResult.type === 'transaction' ? 'Transação' : 'Conta'} encontrado!
+                                        ✅ {getSearchTypeLabel(searchResult.type)} encontrado!
                                     </Typography>
                                     <Typography variant="body2" sx={{ fontFamily: 'monospace', my: 1 }}>
                                         {searchResult.query}
@@ -381,7 +404,7 @@ function HomePage() {
                                 </Typography>
                                 
                                 <Grid container spacing={2}>
-                                    <Grid item xs={12} md={4}>
+                                    <Grid item xs={12} md={3}>
                                         <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'primary.light', borderRadius: 1, color: 'white' }}>
                                             <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                                                 🔢 LEDGER
@@ -392,7 +415,7 @@ function HomePage() {
                                         </Box>
                                     </Grid>
                                     
-                                    <Grid item xs={12} md={4}>
+                                    <Grid item xs={12} md={3}>
                                         <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'success.light', borderRadius: 1, color: 'white' }}>
                                             <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                                                 🏦 CONTA
@@ -403,7 +426,18 @@ function HomePage() {
                                         </Box>
                                     </Grid>
                                     
-                                    <Grid item xs={12} md={4}>
+                                    <Grid item xs={12} md={3}>
+                                        <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'info.light', borderRadius: 1, color: 'white' }}>
+                                            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                                                🧩 CONTRATO
+                                            </Typography>
+                                            <Typography variant="caption" display="block">
+                                                Começa com C: CCJP3TAZ...
+                                            </Typography>
+                                        </Box>
+                                    </Grid>
+
+                                    <Grid item xs={12} md={3}>
                                         <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'warning.light', borderRadius: 1, color: 'white' }}>
                                             <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                                                 📝 TRANSAÇÃO

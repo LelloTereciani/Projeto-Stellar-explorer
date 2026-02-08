@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# Env files
+.env
+
+# Logs
+*.log
+
+# OS/editor
+.DS_Store
+
+# Local deploy artifacts
+frontend/conf.d/

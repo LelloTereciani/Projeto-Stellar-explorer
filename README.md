@@ -78,36 +78,42 @@ Crie um arquivo `.env` na raiz do diretório `backend` (ao lado de `server.js`) 
 ```env
 PORT=3001
 STELLAR_HORIZON_URL=https://horizon.stellar.org
+SOROBAN_RPC_MAINNET_URL=https://stellar-soroban-public.nodies.app
+SOROBAN_RPC_TESTNET_URL=https://stellar-soroban-testnet-public.nodies.app
 ```
 
 -   `PORT`: A porta em que o servidor Express será executado. (Padrão: `3001`)
 -   `STELLAR_HORIZON_URL`: A URL do servidor Horizon da Stellar.
     -   Para a **Mainnet**: `https://horizon.stellar.org` (padrão)
     -   Para a **Testnet**: `https://horizon-testnet.stellar.org`
+-   `SOROBAN_RPC_MAINNET_URL`: Endpoint Soroban RPC da Mainnet (padrão: nodies public)
+-   `SOROBAN_RPC_TESTNET_URL`: Endpoint Soroban RPC da Testnet (padrão: nodies public)
 
 #### Frontend
-O frontend está configurado para se conectar ao backend local. Por padrão, ele pode esperar que o backend esteja na porta `5000` (conforme o documento). **Atenção**: O `server.js` do backend inicia na porta `3001` por padrão. Se necessário, ajuste a URL base no arquivo de configuração do frontend para `http://localhost:3001` ou conforme a porta que você configurou para o backend.
+O frontend está configurado para se conectar ao backend local. Por padrão, ele usa `http://localhost:3001`.  
+Se necessário, defina a variável `VITE_BACKEND_URL` (ex.: `http://localhost:3001`) para apontar para outro endereço/porta.
+Para publicar em subdiretório (ex.: `/explorer`), defina `VITE_BASE_PATH=/explorer/` antes de rodar o build.
 
 ### Execução
 
 Para iniciar o projeto completo, você precisará executar o backend e o frontend em terminais separados.
 
-1.  **Inicie o Backend**:
-    Abra um terminal, navegue até o diretório `backend` e execute:
-    ```bash
-    cd backend
+1.  **Inicie o Backend**
     npm start # ou node server.js
     ```
     Você verá uma mensagem como:
+    Você verá uma mensagem como:
     ```
     🚀 Servidor backend rodando na porta 3001
-    �� Conectado à Stellar Horizon: https://horizon.stellar.org
+    �� Conectado à Stellar Horizon: https://horizon.
+    Você verá uma mensagem como:stellar.org
     🕐 Iniciado em: ...
     ```
 
+    Você verá uma mensagem como:
 2.  **Inicie o Frontend** (em *outro* terminal):
     Abra um novo terminal, navegue até o diretório `frontend` e execute:
-    ```bash
+    ```bashbashbash
     cd frontend
     npm start # ou npm run dev
     ```
@@ -193,6 +199,15 @@ O backend oferece uma API RESTful para interação com os dados da rede Stellar:
     -   *Exemplo (Conta):* `http://localhost:3001/api/search/GDJ7A277SR6Z4E6T3437D3T4D4T4D4G4T4G4T4G4T4G4T4G4T4G4T4G4T4G4T4G4T4`
     -   *Exemplo (Transação):* `http://localhost:3001/api/search/a640161474a584988718617d5a57a1262d0d73f1d8c19954a9918731b6e4e164`
     -   *Exemplo (Ledger):* `http://localhost:3001/api/search/53610214`
+
+### 🧩 Contratos Soroban
+
+-   **`GET /api/contracts/:contractId`**: Retorna detalhes do contrato Soroban (status, hash WASM, storage de instância).
+    -   *Parâmetros de Query:* `network` (`mainnet` ou `testnet`)
+    -   *Exemplo:* `http://localhost:3001/api/contracts/CCJP3TAZR7Q5E2RQ4QRQ5O3VXOMDRTIN2PURYJCSLCAXFX5I3BY34RLK?network=mainnet`
+-   **`GET /api/contracts/:contractId/events`**: Retorna eventos e invocações recentes do contrato.
+    -   *Parâmetros de Query:* `network`, `limit` (opcional), `cursor` (opcional)
+    -   *Exemplo:* `http://localhost:3001/api/contracts/CCJP3TAZR7Q5E2RQ4QRQ5O3VXOMDRTIN2PURYJCSLCAXFX5I3BY34RLK/events?network=mainnet&limit=20`
 
 ### 📄 Detalhes Específicos
 

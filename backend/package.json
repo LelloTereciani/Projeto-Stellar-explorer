@@ -4,13 +4,14 @@
   "description": "Backend for Stellar Explorer",
   "main": "server.js",
   "scripts": {
-     "start": "node server.js"
+    "start": "node server.js"
   },
   "keywords": [],
   "author": "Wesley Rodrigues Tereciani",
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
+    "@stellar/stellar-sdk": "^14.5.0",
     "axios": "^1.12.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",

@@ -38,14 +38,21 @@ function SearchBar() {
                 return;
             }
 
-            // 2. É um número de ledger? (Apenas dígitos)
+            // 2. É um ID de contrato Soroban? (Começa com 'C', 56 caracteres)
+            if (/^C[A-Z2-7]{55}$/i.test(term)) {
+                console.log('✅ Detectado como ID de contrato');
+                navigate(`/contract/${term}`);
+                return;
+            }
+
+            // 3. É um número de ledger? (Apenas dígitos)
             if (/^\d+$/.test(term)) {
                 console.log('✅ Detectado como número de ledger');
                 navigate(`/ledger/${term}`);
                 return;
             }
 
-            // 3. É um hash de 64 caracteres? (Pode ser transação ou ledger)
+            // 4. É um hash de 64 caracteres? (Pode ser transação ou ledger)
             if (term.length === 64 && /^[0-9a-fA-F]+$/i.test(term)) {
                 console.log('🔍 Hash de 64 caracteres detectado, verificando tipo...');
                 
@@ -84,8 +91,8 @@ function SearchBar() {
                 return;
             }
 
-            // 4. Formato não reconhecido
-            setError('Formato não reconhecido. Use:\n• ID de conta (G... 56 caracteres)\n• Número de ledger (apenas dígitos)\n• Hash de transação/ledger (64 caracteres hexadecimais)');
+            // 5. Formato não reconhecido
+            setError('Formato não reconhecido. Use:\n• ID de conta (G... 56 caracteres)\n• ID de contrato (C... 56 caracteres)\n• Número de ledger (apenas dígitos)\n• Hash de transação/ledger (64 caracteres hexadecimais)');
 
         } catch (error) {
             console.error('❌ Erro na busca:', error);
@@ -113,7 +120,7 @@ function SearchBar() {
                 <TextField
                     fullWidth
                     variant="outlined"
-                    placeholder="Buscar por Endereço (G...), Hash da Transação ou Nº do Ledger"
+                    placeholder="Buscar por Endereço (G...), Contrato (C...), Hash da Transação ou Nº do Ledger"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     onKeyPress={handleKeyPress}
@@ -184,6 +191,9 @@ function SearchBar() {
                 </Typography>
                 <Typography variant="body2" sx={{ mb: 1 }}>
                     • <strong>Conta:</strong> GBAGQIVNLM4VQFCF2GQGR7FHQNQBR7XZJNVHQX2U7QP6WJX
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                    • <strong>Contrato:</strong> CCJP3TAZR7Q5E2RQ4QRQ5O3VXOMDRTIN2PURYJCSLCAXFX5I3BY34RLK
                 </Typography>
                 <Typography variant="body2" sx={{ mb: 1 }}>
                     • <strong>Ledger:</strong> 59251585

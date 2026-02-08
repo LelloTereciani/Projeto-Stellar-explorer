@@ -2,10 +2,13 @@ require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
+const StellarSdk = require('@stellar/stellar-sdk');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const STELLAR_HORIZON_URL = process.env.STELLAR_HORIZON_URL || 'https://horizon.stellar.org';
+const SOROBAN_RPC_MAINNET_URL = process.env.SOROBAN_RPC_MAINNET_URL || 'https://stellar-soroban-public.nodies.app';
+const SOROBAN_RPC_TESTNET_URL = process.env.SOROBAN_RPC_TESTNET_URL || 'https://stellar-soroban-testnet-public.nodies.app';
 
 app.use(cors());
 app.use(express.json());
@@ -28,6 +31,128 @@ const isValidTransactionHash = (hash) => {
            typeof hash === 'string' && 
            hash.length === 64 && 
            /^[0-9a-fA-F]+$/.test(hash);
+};
+
+// Função auxiliar para validar ID de contrato Soroban (StrKey C...)
+const isValidContractId = (contractId) => {
+    return contractId &&
+           typeof contractId === 'string' &&
+           contractId.length === 56 &&
+           /^C[A-Z2-7]+$/i.test(contractId);
+};
+
+const normalizeNetwork = (network) => {
+    return String(network || '').toLowerCase() === 'testnet' ? 'testnet' : 'mainnet';
+};
+
+const getSorobanRpcUrl = (network) => {
+    return network === 'testnet' ? SOROBAN_RPC_TESTNET_URL : SOROBAN_RPC_MAINNET_URL;
+};
+
+const getStellarExpertBaseUrl = (network) => {
+    return network === 'testnet'
+        ? 'https://api.stellar.expert/explorer/testnet'
+        : 'https://api.stellar.expert/explorer/public';
+};
+
+const fetchStellarExpertContract = async (network, contractId) => {
+    try {
+        const baseUrl = getStellarExpertBaseUrl(network);
+        const { data } = await axios.get(`${baseUrl}/contract/${contractId}`);
+        return data;
+    } catch (error) {
+        if (error.response?.status === 404) {
+            return null;
+        }
+        throw error;
+    }
+};
+
+const mapExpertContract = (data) => {
+    if (!data) return null;
+    return {
+        createdAt: data.created ? new Date(data.created * 1000).toISOString() : null,
+        creator: data.creator || null,
+        invocations: data.invocations ?? null,
+        subinvocations: data.subinvocation ?? null,
+        eventsCount: data.events ?? null,
+        errorsCount: data.errors ?? null,
+        storageEntries: data.storage_entries ?? null,
+        validationStatus: data.validation?.status || null,
+        wasmHash: data.wasm || null
+    };
+};
+
+const sorobanRpcCall = async (network, method, params) => {
+    const url = getSorobanRpcUrl(network);
+    const payload = {
+        jsonrpc: '2.0',
+        id: Date.now(),
+        method,
+        params
+    };
+
+    const { data } = await axios.post(url, payload);
+    if (data.error) {
+        const message = data.error?.message || 'Erro na chamada Soroban RPC';
+        const error = new Error(message);
+        error.details = data.error;
+        throw error;
+    }
+    return data.result;
+};
+
+const normalizeScVal = (value) => {
+    if (value === null || value === undefined) return value;
+    if (typeof value === 'bigint') return value.toString();
+    if (value instanceof Uint8Array || Buffer.isBuffer(value)) {
+        return Buffer.from(value).toString('hex');
+    }
+    if (Array.isArray(value)) {
+        return value.map(normalizeScVal);
+    }
+    if (value instanceof Map) {
+        const obj = {};
+        for (const [key, val] of value.entries()) {
+            obj[String(normalizeScVal(key))] = normalizeScVal(val);
+        }
+        return obj;
+    }
+    if (typeof value === 'object') {
+        if (value instanceof StellarSdk.Address) {
+            return value.toString();
+        }
+        if (typeof value.toString === 'function' && value.toString !== Object.prototype.toString) {
+            return value.toString();
+        }
+        try {
+            return JSON.parse(JSON.stringify(value));
+        } catch {
+            return String(value);
+        }
+    }
+    return value;
+};
+
+const scValToJson = (scVal) => {
+    try {
+        const native = StellarSdk.scValToNative(scVal);
+        return normalizeScVal(native);
+    } catch (error) {
+        return null;
+    }
+};
+
+const findStorageValue = (storageEntries, keys) => {
+    const targets = keys.map((k) => k.toLowerCase());
+    for (const entry of storageEntries) {
+        const keyString = entry.key !== null && entry.key !== undefined ? String(entry.key) : '';
+        const keyLower = keyString.toLowerCase();
+        if (targets.includes(keyLower)) {
+            return entry.value;
+        }
+    }
+    return null;
 };
 
 // Rota para estatísticas gerais da rede (VERSÃO MELHORADA)
@@ -251,6 +376,12 @@ app.get('/api/search/:term', async (req, res) => {
             console.log('Identificado como ID de conta');
             return res.json({ type: 'account', id: term });
         }
+
+        // É um ID de contrato Soroban? (Começa com 'C', 56 caracteres)
+        if (isValidContractId(term)) {
+            console.log('Identificado como ID de contrato');
+            return res.json({ type: 'contract', id: term });
+        }
         
         // É um hash de transação? (64 caracteres hexadecimais)
         if (term.length === 64 && /^[0-9a-fA-F]+$/.test(term)) {
@@ -269,6 +400,7 @@ app.get('/api/search/:term', async (req, res) => {
             message: 'Formato de busca inválido ou não reconhecido.',
             suggestions: [
                 'ID de conta: deve começar com "G" e ter 56 caracteres',
+                'ID de contrato: deve começar com "C" e ter 56 caracteres (Soroban)',
                 'Hash de transação: deve ter 64 caracteres hexadecimais',
                 'Número de ledger: deve conter apenas dígitos'
             ]
@@ -276,6 +408,297 @@ app.get('/api/search/:term', async (req, res) => {
     } catch (error) {
         console.error('Erro na análise de busca:', error.message);
         res.status(500).json({ message: 'Erro interno ao analisar busca.' });
+    }
+});
+
+// 🧩 Soroban - Detalhes do Contrato
+app.get('/api/contracts/:contractId', async (req, res) => {
+    const { contractId } = req.params;
+    const network = normalizeNetwork(req.query.network);
+
+    if (!isValidContractId(contractId)) {
+        return res.status(400).json({ 
+            message: 'ID de contrato inválido. Deve começar com "C" e ter 56 caracteres base32.' 
+        });
+    }
+
+    try {
+        const contract = new StellarSdk.Contract(contractId);
+        const contractInstanceKey = contract.getFootprint().toXDR('base64');
+
+        let health;
+        let instanceResult;
+        try {
+            [health, instanceResult] = await Promise.all([
+                sorobanRpcCall(network, 'getHealth'),
+                sorobanRpcCall(network, 'getLedgerEntries', { keys: [contractInstanceKey] })
+            ]);
+        } catch (rpcError) {
+            const expertContract = await fetchStellarExpertContract(network, contractId);
+            if (expertContract) {
+                const expert = mapExpertContract(expertContract);
+                return res.json({
+                    contractId,
+                    network,
+                    status: 'active',
+                    executableType: 'wasm',
+                    wasmHash: expert?.wasmHash || null,
+                    codeHash: expert?.wasmHash || null,
+                    codeSize: null,
+                    createdLedger: null,
+                    createdAt: expert?.createdAt || null,
+                    creator: expert?.creator || null,
+                    lastModifiedLedger: null,
+                    latestLedger: null,
+                    oldestLedger: null,
+                    ledgerRetentionWindow: null,
+                    storageCount: expert?.storageEntries ?? null,
+                    storageEntries: expert?.storageEntries ?? null,
+                    invocations: expert?.invocations ?? null,
+                    subinvocations: expert?.subinvocations ?? null,
+                    eventsCount: expert?.eventsCount ?? null,
+                    errorsCount: expert?.errorsCount ?? null,
+                    validationStatus: expert?.validationStatus ?? null,
+                    storage: [],
+                    admin: null,
+                    owner: null,
+                    source: 'stellar-expert',
+                    warning: 'Soroban RPC indisponível. Dados básicos do StellarExpert.'
+                });
+            }
+            throw rpcError;
+        }
+
+        let instanceEntry = instanceResult.entries && instanceResult.entries[0];
+
+        if (!instanceEntry) {
+            const expertContract = await fetchStellarExpertContract(network, contractId);
+            if (!expertContract) {
+                return res.status(404).json({
+                    contractId,
+                    network,
+                    status: 'not_found'
+                });
+            }
+
+            const expert = mapExpertContract(expertContract);
+            return res.json({
+                contractId,
+                network,
+                status: 'active',
+                executableType: 'wasm',
+                wasmHash: expert?.wasmHash || null,
+                codeHash: expert?.wasmHash || null,
+                codeSize: null,
+                createdLedger: null,
+                createdAt: expert?.createdAt || null,
+                creator: expert?.creator || null,
+                lastModifiedLedger: null,
+                latestLedger: health.latestLedger || null,
+                oldestLedger: health.oldestLedger || null,
+                ledgerRetentionWindow: health.ledgerRetentionWindow || null,
+                storageCount: expert?.storageEntries ?? null,
+                storageEntries: expert?.storageEntries ?? null,
+                invocations: expert?.invocations ?? null,
+                subinvocations: expert?.subinvocations ?? null,
+                eventsCount: expert?.eventsCount ?? null,
+                errorsCount: expert?.errorsCount ?? null,
+                validationStatus: expert?.validationStatus ?? null,
+                storage: [],
+                admin: null,
+                owner: null,
+                source: 'stellar-expert'
+            });
+        }
+        const instanceData = StellarSdk.xdr.LedgerEntryData.fromXDR(instanceEntry.xdr, 'base64');
+        const contractData = instanceData.contractData();
+        const instance = contractData.val().instance();
+        const executable = instance.executable();
+
+        const executableType = executable.switch().name;
+        let wasmHash = null;
+        let codeSize = null;
+        let codeHash = null;
+
+        if (executableType === 'contractExecutableWasm') {
+            const wasmHashBuffer = executable.wasmHash();
+            wasmHash = Buffer.from(wasmHashBuffer).toString('hex');
+
+            try {
+                const codeKey = StellarSdk.xdr.LedgerKey.contractCode(
+                    new StellarSdk.xdr.LedgerKeyContractCode({ hash: wasmHashBuffer })
+                );
+                const codeKeyXdr = codeKey.toXDR('base64');
+                const codeResult = await sorobanRpcCall(network, 'getLedgerEntries', { keys: [codeKeyXdr] });
+                if (codeResult.entries && codeResult.entries.length > 0) {
+                    const codeEntryData = StellarSdk.xdr.LedgerEntryData.fromXDR(codeResult.entries[0].xdr, 'base64');
+                    const codeEntry = codeEntryData.contractCode();
+                    const code = codeEntry.code();
+                    codeSize = code.length;
+                    codeHash = Buffer.from(codeEntry.hash()).toString('hex');
+                }
+            } catch (error) {
+                console.warn('⚠️ Não foi possível obter o código do contrato:', error.message);
+            }
+        }
+
+        const storageRaw = instance.storage() || [];
+        const storage = storageRaw.map((entry) => ({
+            key: scValToJson(entry.key()),
+            value: scValToJson(entry.val())
+        }));
+
+        const admin = findStorageValue(storage, ['admin', 'administrator']);
+        const owner = findStorageValue(storage, ['owner']);
+
+        let createdAt = null;
+        let creator = null;
+        let invocations = null;
+        let subinvocations = null;
+        let eventsCount = null;
+        let errorsCount = null;
+        let storageEntries = null;
+        let validationStatus = null;
+        let source = 'soroban-rpc';
+        try {
+            const expertContract = await fetchStellarExpertContract(network, contractId);
+            if (expertContract) {
+                const expert = mapExpertContract(expertContract);
+                createdAt = expert?.createdAt || null;
+                creator = expert?.creator || null;
+                invocations = expert?.invocations ?? null;
+                subinvocations = expert?.subinvocations ?? null;
+                eventsCount = expert?.eventsCount ?? null;
+                errorsCount = expert?.errorsCount ?? null;
+                storageEntries = expert?.storageEntries ?? null;
+                validationStatus = expert?.validationStatus ?? null;
+                source = 'soroban-rpc+stellar-expert';
+            }
+        } catch (error) {
+            console.warn('⚠️ Não foi possível obter dados do StellarExpert:', error.message);
+        }
+
+        return res.json({
+            contractId,
+            network,
+            status: 'active',
+            executableType: executableType === 'contractExecutableWasm' ? 'wasm' : 'stellar_asset',
+            wasmHash,
+            codeHash,
+            codeSize,
+            createdLedger: null,
+            createdAt,
+            creator,
+            lastModifiedLedger: instanceEntry.lastModifiedLedgerSeq || null,
+            latestLedger: health.latestLedger || null,
+            oldestLedger: health.oldestLedger || null,
+            ledgerRetentionWindow: health.ledgerRetentionWindow || null,
+            storageCount: storage.length,
+            storageEntries,
+            invocations,
+            subinvocations,
+            eventsCount,
+            errorsCount,
+            validationStatus,
+            storage,
+            admin,
+            owner,
+            source
+        });
+    } catch (error) {
+        console.error('Erro ao buscar contrato Soroban:', error.message);
+        return res.status(500).json({ message: 'Erro ao buscar contrato Soroban.' });
+    }
+});
+
+// 🧩 Soroban - Eventos e Invocações Recentes
+app.get('/api/contracts/:contractId/events', async (req, res) => {
+    const { contractId } = req.params;
+    const network = normalizeNetwork(req.query.network);
+    const limit = Math.min(parseInt(req.query.limit || '20', 10) || 20, 200);
+    const cursor = req.query.cursor || null;
+    const startLedger = req.query.startLedger ? parseInt(req.query.startLedger, 10) : null;
+    const endLedger = req.query.endLedger ? parseInt(req.query.endLedger, 10) : null;
+
+    if (!isValidContractId(contractId)) {
+        return res.status(400).json({ 
+            message: 'ID de contrato inválido. Deve começar com "C" e ter 56 caracteres base32.' 
+        });
+    }
+
+    try {
+        let health;
+        try {
+            health = await sorobanRpcCall(network, 'getHealth');
+        } catch (error) {
+            return res.json({
+                events: [],
+                cursor: null,
+                invocations: [],
+                warning: 'Soroban RPC indisponível no momento.'
+            });
+        }
+
+        const latestLedger = health.latestLedger || 0;
+        const retentionWindow = health.ledgerRetentionWindow || 2000;
+        const defaultWindow = Math.min(retentionWindow, 2000);
+        const oldestLedger = health.oldestLedger || Math.max(latestLedger - retentionWindow + 1, 1);
+        let computedStartLedger = startLedger || Math.max(latestLedger - defaultWindow + 1, oldestLedger);
+
+        if (startLedger) {
+            if (startLedger < oldestLedger) computedStartLedger = oldestLedger;
+            if (startLedger > latestLedger) computedStartLedger = latestLedger;
+        }
+
+        const params = {
+            filters: [{ type: 'contract', contractIds: [contractId] }],
+            pagination: { limit },
+            xdrFormat: 'json'
+        };
+
+        if (cursor) {
+            params.pagination.cursor = cursor;
+        } else {
+            params.startLedger = computedStartLedger;
+            if (endLedger) {
+                params.endLedger = endLedger;
+            }
+        }
+
+        let result;
+        try {
+            result = await sorobanRpcCall(network, 'getEvents', params);
+        } catch (error) {
+            return res.json({
+                events: [],
+                cursor: null,
+                invocations: [],
+                warning: 'Eventos indisponíveis no momento.'
+            });
+        }
+        const events = result.events || [];
+
+        const invocations = [];
+        const seen = new Set();
+        for (const event of events) {
+            if (event.txHash && !seen.has(event.txHash)) {
+                seen.add(event.txHash);
+                invocations.push({
+                    txHash: event.txHash,
+                    ledger: event.ledger,
+                    ledgerClosedAt: event.ledgerClosedAt,
+                    success: event.inSuccessfulContractCall
+                });
+            }
+        }
+
+        return res.json({
+            ...result,
+            invocations
+        });
+    } catch (error) {
+        console.error('Erro ao buscar eventos Soroban:', error.message);
+        return res.status(500).json({ message: 'Erro ao buscar eventos do contrato.' });
     }
 });
 
@@ -519,6 +942,8 @@ app.listen(PORT, () => {
     console.log(`   GET /api/transactions - Transações recentes`);
     console.log(`   GET /api/operations - Operações recentes`);
     console.log(`   GET /api/search/:term - Busca inteligente`);
+    console.log(`   GET /api/contracts/:contractId - Detalhes do contrato Soroban`);
+    console.log(`   GET /api/contracts/:contractId/events - Eventos e invocações`);
     console.log(`   GET /api/transactions/:hash - Detalhes da transação`);
     console.log(`   GET /api/accounts/:id - Detalhes da conta`);
     console.log(`   GET /api/ledgers/:sequence - Detalhes do ledger`);

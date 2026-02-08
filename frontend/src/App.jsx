@@ -8,15 +8,17 @@ import HomePage from './pages/HomePage';
 import LedgerDetailsPage from './pages/LedgerDetailsPage';
 import TransactionDetailsPage from './pages/TransactionDetailsPage';
 import AccountDetailsPage from './pages/AccountDetailsPage';
+import ContractDetailsPage from './pages/ContractDetailsPage';
 import ChartsPage from './pages/ChartsPage'; // ← NOVO IMPORT
 
 function AppContent() {
     const { theme } = useAppContext();
+    const baseName = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
 
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline />
-            <Router>
+            <Router basename={baseName || '/'}>
                 <Box
                     sx={{
                         display: 'flex',
@@ -32,6 +34,7 @@ function AppContent() {
                             <Route path="/ledger/:ledgerId" element={<LedgerDetailsPage />} />
                             <Route path="/transaction/:transactionId" element={<TransactionDetailsPage />} />
                             <Route path="/account/:accountId" element={<AccountDetailsPage />} />
+                            <Route path="/contract/:contractId" element={<ContractDetailsPage />} />
                         </Routes>
                     </Box>
                     <Footer />
