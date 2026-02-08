@@ -116,7 +116,13 @@ export const AppProvider = ({ children }) => {
     };
 
     const getBackendUrl = () => {
-        return import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+        if (import.meta.env.VITE_BACKEND_URL) {
+            return import.meta.env.VITE_BACKEND_URL;
+        }
+        if (typeof window !== 'undefined' && window.location?.origin) {
+            return window.location.origin;
+        }
+        return 'http://localhost:3001';
     };
 
     // Nome da rede

@@ -48,31 +48,6 @@ const formatDateTime = (value) => {
     return date.toLocaleString('pt-BR');
 };
 
-const buildSummaryFromExpert = (data, network) => {
-    if (!data || !data.contract) return null;
-    return {
-        contractId: data.contract,
-        network,
-        status: 'active',
-        executableType: 'wasm',
-        wasmHash: data.wasm || null,
-        codeHash: data.wasm || null,
-        codeSize: null,
-        createdLedger: null,
-        createdAt: data.created ? new Date(data.created * 1000).toISOString() : null,
-        creator: data.creator || null,
-        lastModifiedLedger: null,
-        latestLedger: null,
-        oldestLedger: null,
-        ledgerRetentionWindow: null,
-        storageCount: data.storage_entries ?? null,
-        storage: [],
-        admin: null,
-        owner: null,
-        source: 'stellar-expert'
-    };
-};
-
 const stringifyValue = (value) => {
     if (value === null || value === undefined) return 'N/A';
     if (typeof value === 'string') return value;
@@ -149,27 +124,10 @@ function ContractDetailsPage() {
             });
             setSummary(data);
         } catch (err) {
-            let handled = false;
-            try {
-                const expertBase = network === 'testnet'
-                    ? 'https://api.stellar.expert/explorer/testnet'
-                    : 'https://api.stellar.expert/explorer/public';
-                const { data } = await axios.get(`${expertBase}/contract/${contractId}`);
-                const expertSummary = buildSummaryFromExpert(data, network);
-                if (expertSummary) {
-                    setSummary(expertSummary);
-                    handled = true;
-                }
-            } catch (expertError) {
-                handled = false;
-            }
-
-            if (!handled) {
-                if (err.response?.status === 404) {
-                    setError('Contrato não encontrado nesta rede.');
-                } else {
-                    setError('Erro ao carregar detalhes do contrato.');
-                }
+            if (err.response?.status === 404) {
+                setError('Contrato não encontrado nesta rede.');
+            } else {
+                setError('Erro ao carregar detalhes do contrato.');
             }
         } finally {
             setLoading(false);
