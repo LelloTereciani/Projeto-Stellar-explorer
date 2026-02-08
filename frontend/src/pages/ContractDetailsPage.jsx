@@ -604,7 +604,7 @@ function ContractDetailsPage() {
 
                             {!eventsLoading && !eventsError && eventsData.events.length === 0 && (
                                 <Alert severity="info" sx={{ borderRadius: 2 }}>
-                                    Nenhum evento encontrado no período recente da RPC.
+                                    Nenhum evento encontrado na janela de retenção da RPC.
                                 </Alert>
                             )}
 

@@ -641,7 +641,7 @@ app.get('/api/contracts/:contractId/events', async (req, res) => {
 
         const latestLedger = health.latestLedger || 0;
         const retentionWindow = health.ledgerRetentionWindow || 2000;
-        const defaultWindow = Math.min(retentionWindow, 2000);
+        const defaultWindow = retentionWindow;
         const oldestLedger = health.oldestLedger || Math.max(latestLedger - retentionWindow + 1, 1);
         let computedStartLedger = startLedger || Math.max(latestLedger - defaultWindow + 1, oldestLedger);
 
