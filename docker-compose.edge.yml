@@ -1,0 +1,24 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: backend/.env
+        required: false
+    environment:
+      PROJECTS_ROOT: /var/www/html
+    volumes:
+      - /var/www/html:/var/www/html:ro
+    expose:
+      - "3001"
+    networks:
+      edge:
+        aliases:
+          - stellar-explorer-backend
+
+networks:
+  edge:
+    external: true
+    name: edge

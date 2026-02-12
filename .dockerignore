@@ -1,0 +1,6 @@
+.git
+.gitignore
+**/node_modules
+frontend/dist
+frontend/deploy
+npm-debug.log*

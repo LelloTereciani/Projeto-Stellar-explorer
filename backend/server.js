@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3001;
 const STELLAR_HORIZON_URL = process.env.STELLAR_HORIZON_URL || 'https://horizon.stellar.org';
 const SOROBAN_RPC_MAINNET_URL = process.env.SOROBAN_RPC_MAINNET_URL || 'https://stellar-soroban-public.nodies.app';
 const SOROBAN_RPC_TESTNET_URL = process.env.SOROBAN_RPC_TESTNET_URL || 'https://stellar-soroban-testnet-public.nodies.app';
-const PROJECTS_ROOT = process.env.PROJECTS_ROOT || '/var/www/portifolio.cloud';
+const PROJECTS_ROOT = process.env.PROJECTS_ROOT || '/var/www/html';
 
 app.use(cors());
 app.use(express.json());

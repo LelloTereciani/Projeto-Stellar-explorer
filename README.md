@@ -25,9 +25,9 @@ Soroban RPC. Se nao houver eventos na janela, o resultado sera vazio. 🙂
 ## Demo 🔗
 
 Rodando em producao:
-- Home: `http://portifolio.cloud` (tambem em `http://www.portifolio.cloud`)
-- Frontend: `http://portifolio.cloud/explorer` (tambem em `http://www.portifolio.cloud/explorer`)
-- API: `http://portifolio.cloud/api` (tambem em `http://www.portifolio.cloud/api`)
+- Home: `https://portifolio.cloud` (tambem em `https://www.portifolio.cloud`)
+- Frontend: `https://portifolio.cloud/explorer` (tambem em `https://www.portifolio.cloud/explorer`)
+- API: `https://portifolio.cloud/api` (tambem em `https://www.portifolio.cloud/api`)
 
 ## Tecnologias 🧰
 
@@ -75,7 +75,7 @@ PORT=3001
 STELLAR_HORIZON_URL=https://horizon.stellar.org
 SOROBAN_RPC_MAINNET_URL=https://stellar-soroban-public.nodies.app
 SOROBAN_RPC_TESTNET_URL=https://stellar-soroban-testnet-public.nodies.app
-PROJECTS_ROOT=/var/www/portifolio.cloud
+PROJECTS_ROOT=/var/www/html
 ```
 
 ### Frontend (opcional) 🌐
@@ -131,49 +131,38 @@ VITE_BASE_PATH=/explorer/ VITE_BACKEND_URL=https://seu-dominio.com npm run build
 
 ## Deploy na VPS 🌍
 
-Passo a passo (exemplo generico):
-1) Gere pacote de deploy (SPA em `/explorer` + pagina raiz):
+Arquitetura recomendada:
+- Edge proxy dedicado (Nginx em container) no projeto `RWAImob/infra/edge-proxy`.
+- Frontend deste projeto publicado como estatico em `/var/www/html/explorer`.
+- Backend deste projeto em container (`docker-compose.edge.yml`) na rede Docker `edge`.
+
+Passo a passo:
+1) Gere pacote de frontend (SPA em `/explorer` + pagina raiz):
 ```bash
 cd frontend
 npm run build:deploy
 ```
-2) Publique o conteudo de `frontend/deploy/` no diretorio publico (ex.: `/var/www/portifolio.cloud`).
-3) Garanta no backend a variavel `PROJECTS_ROOT` apontando para o root publico e reinicie o backend.
-4) Configure o servidor web para atender `portifolio.cloud` e `www.portifolio.cloud`.
-
-Exemplo de configuracao Nginx:
-```nginx
-server {
-    listen 80;
-    server_name portifolio.cloud www.portifolio.cloud;
-    root /var/www/portifolio.cloud;
-    index index.html;
-
-    location = / {
-        try_files /index.html =404;
-    }
-
-    location /explorer/ {
-        try_files $uri $uri/ /explorer/index.html;
-    }
-
-    location /api/ {
-        proxy_pass http://127.0.0.1:3001;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # Opcional: listagem direta do nginx para auto-descoberta
-    location = /__projects { return 301 /__projects/; }
-    location /__projects/ {
-        alias /var/www/portifolio.cloud/;
-        autoindex on;
-        autoindex_format json;
-    }
-}
+2) Publique o conteudo de `frontend/deploy/` no diretorio publico da VPS:
+```bash
+rsync -av --delete frontend/deploy/ root@SEU_IP:/var/www/html/
 ```
+3) Configure `backend/.env` na VPS com:
+```env
+PROJECTS_ROOT=/var/www/html
+```
+4) Suba o backend na rede compartilhada `edge`:
+```bash
+bash scripts/deploy-backend-edge.sh
+```
+5) Garanta que o edge proxy esteja ativo no projeto RWAImob:
+```bash
+cd /root/RWAImob
+bash infra/edge-proxy/scripts/deploy-edge.sh
+```
+
+Observacao:
+- O roteamento de `/api`, `/explorer`, `/RWAImob` e `/__projects/` fica centralizado no edge proxy.
+- Este repositório nao precisa mais publicar porta HTTP no host.
 
 ## Endpoints principais 🔌
 
