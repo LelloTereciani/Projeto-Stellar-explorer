@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
+const fs = require('fs/promises');
+const path = require('path');
 const StellarSdk = require('@stellar/stellar-sdk');
 
 const app = express();
@@ -9,6 +11,7 @@ const PORT = process.env.PORT || 3001;
 const STELLAR_HORIZON_URL = process.env.STELLAR_HORIZON_URL || 'https://horizon.stellar.org';
 const SOROBAN_RPC_MAINNET_URL = process.env.SOROBAN_RPC_MAINNET_URL || 'https://stellar-soroban-public.nodies.app';
 const SOROBAN_RPC_TESTNET_URL = process.env.SOROBAN_RPC_TESTNET_URL || 'https://stellar-soroban-testnet-public.nodies.app';
+const PROJECTS_ROOT = process.env.PROJECTS_ROOT || '/var/www/portifolio.cloud';
 
 app.use(cors());
 app.use(express.json());
@@ -154,6 +157,8 @@ const findStorageValue = (storageEntries, keys) => {
     }
     return null;
 };
+
+const EXCLUDED_PROJECT_DIRS = new Set(['api', '__projects']);
 
 // Rota para estatísticas gerais da rede (VERSÃO MELHORADA)
 app.get('/api/network-stats', async (req, res) => {
@@ -913,6 +918,55 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// Lista pastas de projetos no root público da VPS
+app.get('/api/projects', async (req, res) => {
+    try {
+        const root = PROJECTS_ROOT;
+        const includeWithoutIndex = String(req.query.all || '') === '1';
+        const entries = await fs.readdir(root, { withFileTypes: true });
+        const projects = [];
+
+        for (const entry of entries) {
+            if (!entry.isDirectory()) continue;
+
+            const name = entry.name;
+            if (!name || name.startsWith('.') || EXCLUDED_PROJECT_DIRS.has(name)) continue;
+
+            const indexPath = path.join(root, name, 'index.html');
+            let hasIndex = false;
+            try {
+                await fs.access(indexPath);
+                hasIndex = true;
+            } catch {
+                hasIndex = false;
+            }
+
+            if (!hasIndex && !includeWithoutIndex) continue;
+
+            projects.push({
+                name,
+                path: `/${name}`,
+                type: 'directory',
+                hasIndex
+            });
+        }
+
+        projects.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+
+        res.json({
+            root,
+            total: projects.length,
+            projects
+        });
+    } catch (error) {
+        console.error('❌ Erro ao listar projetos:', error.message);
+        res.status(500).json({
+            message: 'Erro ao listar diretorios de projetos',
+            details: error.message
+        });
+    }
+});
+
 // Middleware de tratamento de erros global
 app.use((error, req, res, next) => {
     console.error('Erro não tratado:', error);
@@ -937,6 +991,7 @@ app.listen(PORT, () => {
     console.log(`🕐 Iniciado em: ${new Date().toLocaleString()}`);
     console.log(`\n📋 Rotas disponíveis:`);
     console.log(`   GET /api/health - Status do servidor`);
+    console.log(`   GET /api/projects - Lista diretorios publicados`);
     console.log(`   GET /api/network-stats - Estatísticas da rede`);
     console.log(`   GET /api/ledgers - Ledgers recentes`);
     console.log(`   GET /api/transactions - Transações recentes`);

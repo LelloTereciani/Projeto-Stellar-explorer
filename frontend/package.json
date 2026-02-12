@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:vps": "VITE_BASE_PATH=/explorer/ vite build",
+    "package:vps": "rm -rf deploy && mkdir -p deploy/explorer && cp -r dist/* deploy/explorer/ && cp root-index.html deploy/index.html",
+    "build:deploy": "npm run build:vps && npm run package:vps"
   },
   "dependencies": {
     "@emotion/react": "^11.11.1",

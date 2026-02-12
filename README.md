@@ -25,8 +25,9 @@ Soroban RPC. Se nao houver eventos na janela, o resultado sera vazio. 🙂
 ## Demo 🔗
 
 Rodando em producao:
-- Frontend: `http://portifolio.cloud/explorer`
-- API: `http://portifolio.cloud/api`
+- Home: `http://portifolio.cloud` (tambem em `http://www.portifolio.cloud`)
+- Frontend: `http://portifolio.cloud/explorer` (tambem em `http://www.portifolio.cloud/explorer`)
+- API: `http://portifolio.cloud/api` (tambem em `http://www.portifolio.cloud/api`)
 
 ## Tecnologias 🧰
 
@@ -74,6 +75,7 @@ PORT=3001
 STELLAR_HORIZON_URL=https://horizon.stellar.org
 SOROBAN_RPC_MAINNET_URL=https://stellar-soroban-public.nodies.app
 SOROBAN_RPC_TESTNET_URL=https://stellar-soroban-testnet-public.nodies.app
+PROJECTS_ROOT=/var/www/portifolio.cloud
 ```
 
 ### Frontend (opcional) 🌐
@@ -130,17 +132,28 @@ VITE_BASE_PATH=/explorer/ VITE_BACKEND_URL=https://seu-dominio.com npm run build
 ## Deploy na VPS 🌍
 
 Passo a passo (exemplo generico):
-1) Gere o build com `VITE_BASE_PATH=/explorer/`.
-2) Suba a pasta `frontend/dist` para o diretorio publico do servidor (ex.: `/var/www/portifolio.cloud/explorer`).
-3) Configure o servidor web para servir `/explorer` e encaminhar `/api` para o backend.
+1) Gere pacote de deploy (SPA em `/explorer` + pagina raiz):
+```bash
+cd frontend
+npm run build:deploy
+```
+2) Publique o conteudo de `frontend/deploy/` no diretorio publico (ex.: `/var/www/portifolio.cloud`).
+3) Garanta no backend a variavel `PROJECTS_ROOT` apontando para o root publico e reinicie o backend.
+4) Configure o servidor web para atender `portifolio.cloud` e `www.portifolio.cloud`.
 
 Exemplo de configuracao Nginx:
 ```nginx
 server {
-    server_name portifolio.cloud;
+    listen 80;
+    server_name portifolio.cloud www.portifolio.cloud;
+    root /var/www/portifolio.cloud;
+    index index.html;
+
+    location = / {
+        try_files /index.html =404;
+    }
 
     location /explorer/ {
-        root /var/www/portifolio.cloud;
         try_files $uri $uri/ /explorer/index.html;
     }
 
@@ -148,6 +161,16 @@ server {
         proxy_pass http://127.0.0.1:3001;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Opcional: listagem direta do nginx para auto-descoberta
+    location = /__projects { return 301 /__projects/; }
+    location /__projects/ {
+        alias /var/www/portifolio.cloud/;
+        autoindex on;
+        autoindex_format json;
     }
 }
 ```
@@ -155,6 +178,7 @@ server {
 ## Endpoints principais 🔌
 
 - `GET /api/health`
+- `GET /api/projects` (use `?all=1` para incluir diretorios sem `index.html`)
 - `GET /api/network-stats`
 - `GET /api/ledgers?limit=20`
 - `GET /api/transactions?limit=20`
