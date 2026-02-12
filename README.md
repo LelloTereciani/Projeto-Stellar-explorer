@@ -24,7 +24,9 @@ Soroban RPC. Se nao houver eventos na janela, o resultado sera vazio. 🙂
 
 ## Demo 🔗
 
-Rodando em producao: `http://portifolio.cloud/explorer`
+Rodando em producao:
+- Frontend: `http://portifolio.cloud/explorer`
+- API: `http://portifolio.cloud/api`
 
 ## Tecnologias 🧰
 

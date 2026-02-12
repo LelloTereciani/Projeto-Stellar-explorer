@@ -2,18 +2,19 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, CssBaseline, Box } from '@mui/material';
 import { AppProvider, useAppContext } from './contexts/AppContext';
-import Header from './components/Header';
-import Footer from './components/Footer';
-import HomePage from './pages/HomePage';
-import LedgerDetailsPage from './pages/LedgerDetailsPage';
-import TransactionDetailsPage from './pages/TransactionDetailsPage';
-import AccountDetailsPage from './pages/AccountDetailsPage';
-import ContractDetailsPage from './pages/ContractDetailsPage';
-import ChartsPage from './pages/ChartsPage'; // ← NOVO IMPORT
+import Header from './components/Header.jsx';
+import Footer from './components/Footer.jsx';
+import HomePage from './pages/HomePage.jsx';
+import LedgerDetailsPage from './pages/LedgerDetailsPage.jsx';
+import TransactionDetailsPage from './pages/TransactionDetailsPage.jsx';
+import AccountDetailsPage from './pages/AccountDetailsPage.jsx';
+import ContractDetailsPage from './pages/ContractDetailsPage.jsx';
+import ChartsPage from './pages/ChartsPage.jsx'; // ← NOVO IMPORT
 
 function AppContent() {
     const { theme } = useAppContext();
-    const baseName = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+    const envBase = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+    const baseName = import.meta.env.PROD ? '/explorer' : envBase;
 
     return (
         <ThemeProvider theme={theme}>
