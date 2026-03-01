@@ -30,10 +30,35 @@
         font-weight: 700;
         letter-spacing: 0.3px;
       }
+      h2 {
+        margin: 26px 0 10px;
+        font-size: 18px;
+        letter-spacing: 0.2px;
+        text-align: left;
+      }
       p {
         margin: 8px 0 24px;
         color: #9ca3af;
       }
+      .lead {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: center;
+      }
+      .pilllink {
+        display: inline-block;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid #1f2937;
+        background: #0f172a;
+        color: #93c5fd;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .pilllink:hover { border-color: #334155; }
       .grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -82,14 +107,26 @@
   <body>
     <main>
       <h1>Portifolio Cloud</h1>
-      <p>Projetos disponiveis neste dominio.</p>
+      <div class="lead">
+        <p style="margin: 8px 0 16px;">Projetos disponiveis neste dominio.</p>
+        <a class="pilllink" href="https://github.com/LelloTereciani" target="_blank" rel="noreferrer">GitHub</a>
+      </div>
       <div id="project-grid" class="grid"></div>
-      <div class="muted">Atualiza automaticamente pelas rotas <code>/__projects/</code> ou <code>/api/projects</code>.</div>
+
+      <h2>Repos publicos no GitHub</h2>
+      <div id="gh-grid" class="grid"></div>
+      <div class="muted">
+        Lista automatica via GitHub API (somente repos publicos, sem forks e sem archived).
+        <a href="https://github.com/LelloTereciani?tab=repositories" target="_blank" rel="noreferrer">Ver todos</a>.
+      </div>
     </main>
 
     <script>
+      const GITHUB_USERNAME = 'LelloTereciani';
+
       const MANUAL_PROJECTS = [
         { name: 'RWAImob', path: '/RWAImob', note: 'Proxy / Next.js' },
+        { name: 'EAS', path: '/EAS', note: 'Proxy / App' },
         { name: 'Stellar Explorer', path: '/explorer', note: 'Static' }
       ];
 
@@ -118,7 +155,6 @@
       }
 
       async function fetchAutoProjects() {
-        // Primeira tentativa: endpoint nginx autoindex em JSON
         try {
           const res = await fetch('/__projects/');
           if (res.ok) {
@@ -127,10 +163,9 @@
             if (parsed.length > 0) return parsed;
           }
         } catch {
-          // fallback abaixo
+          // fallback below
         }
 
-        // Segunda tentativa: endpoint do backend
         try {
           const res = await fetch('/api/projects');
           if (!res.ok) return [];
@@ -163,10 +198,57 @@
         });
       }
 
+      function renderGitHubRepos(repos) {
+        const grid = document.getElementById('gh-grid');
+        grid.innerHTML = '';
+        repos.forEach((repo) => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          const stars =
+            (typeof repo.stargazers_count === 'number' && repo.stargazers_count > 0)
+              ? ` <span class="badge">★ ${repo.stargazers_count}</span>`
+              : '';
+          const lang = repo.language ? ` <span class="badge">${repo.language}</span>` : '';
+          card.innerHTML = `
+            <a href="${repo.html_url}" target="_blank" rel="noreferrer">${repo.name}</a>
+            <small>${repo.full_name}${stars}${lang}</small>
+            ${repo.description ? `<small style="margin-top:10px;color:#9ca3af;">${repo.description}</small>` : ''}
+          `;
+          grid.appendChild(card);
+        });
+      }
+
+      async function fetchGitHubRepos() {
+        const url = `https://api.github.com/users/${encodeURIComponent(GITHUB_USERNAME)}/repos?type=owner&sort=updated&per_page=100`;
+        const res = await fetch(url, {
+          cache: 'no-store',
+          headers: { accept: 'application/vnd.github+json' }
+        });
+        if (!res.ok) return [];
+
+        const repos = await res.json();
+        return Array.isArray(repos)
+          ? repos
+              .filter((repo) => repo && !repo.private)
+              .filter((repo) => !repo.fork)
+              .filter((repo) => !repo.archived)
+              .filter((repo) =>
+                repo.owner?.login
+                  ? String(repo.owner.login).toLowerCase() === String(GITHUB_USERNAME).toLowerCase()
+                  : true
+              )
+              .sort((a, b) => String(b.pushed_at || '').localeCompare(String(a.pushed_at || '')))
+              .slice(0, 12)
+          : [];
+      }
+
       (async () => {
         const autoProjects = await fetchAutoProjects();
         const projects = mergeProjects(autoProjects, MANUAL_PROJECTS);
         renderProjects(projects);
+
+        const repos = await fetchGitHubRepos();
+        renderGitHubRepos(repos);
       })();
     </script>
   </body>
